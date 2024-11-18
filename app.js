@@ -2,39 +2,65 @@ import { Telegraf } from 'telegraf'
 import { message } from 'telegraf/filters'
 import 'dotenv/config'
 
+import { welcomeMessage, helpMessage, scheduleMonday, 
+    scheduleTuesday, scheduleWednesday, scheduleThursday, 
+    scheduleFriday, scheduleSaturday, scheduleSunday } from 'config.js' 
+
+const schedules = [scheduleSunday, scheduleMonday, scheduleTuesday, scheduleWednesday, scheduleThursday, scheduleFriday, scheduleSaturday];
+
+
 const bot = new Telegraf(process.env.BOT_TOKEN)
 
-bot.command('quit', async (ctx) => {
-  // Explicit usage
-  await ctx.telegram.leaveChat(ctx.message.chat.id)
 
-  // Using context shortcut
+
+bot.command('quit', async (ctx) => {
   await ctx.leaveChat()
 })
 
-bot.on(message('text'), async (ctx) => {
-  // Explicit usage
-  await ctx.telegram.sendMessage(ctx.message.chat.id, `Hello ${ctx.state.role}`)
-
-  // Using context shortcut
-  await ctx.reply(`Hello ${ctx.state.role}`)
+bot.command('start', async (ctx) => {
+    await ctx.reply(
+        welcomeMessage,
+        Markup.keyboard([
+			Markup.button.callback("Расписание на сегодня", "schedule_today"),
+			Markup.button.callback("Расписание на завтра", "schedule_tomorrow"),
+		]).resize()
+    )
 })
 
-bot.on('callback_query', async (ctx) => {
-  // Explicit usage
-  await ctx.telegram.answerCbQuery(ctx.callbackQuery.id)
-
-  // Using context shortcut
-  await ctx.answerCbQuery()
+bot.command('help', async (ctx) => {
+    await ctx.reply(
+        helpMessage,
+        Markup.keyboard([
+			Markup.button.callback("Расписание на сегодня", "schedule_today"),
+			Markup.button.callback("Расписание на завтра", "schedule_tomorrow"),
+		]).resize()
+    )
 })
 
-bot.on('inline_query', async (ctx) => {
-  const result = []
-  // Explicit usage
-  await ctx.telegram.answerInlineQuery(ctx.inlineQuery.id, result)
+bot.action("schedule_today", async (ctx) => {
+    const date = new Date();
+    const schedule = schedules[date.getDay()];
 
-  // Using context shortcut
-  await ctx.answerInlineQuery(result)
+    await ctx.reply(
+        schedule,
+        Markup.keyboard([
+			Markup.button.callback("Расписание на сегодня", "schedule_today"),
+			Markup.button.callback("Расписание на завтра", "schedule_tomorrow"),
+		]).resize()
+    )
+})
+
+bot.action("schedule_tomorrow", async (ctx) => {
+    const date = new Date();
+    const schedule = schedules[date.getDay() + 1];
+
+    await ctx.reply(
+        schedule,
+        Markup.keyboard([
+			Markup.button.callback("Расписание на сегодня", "schedule_today"),
+			Markup.button.callback("Расписание на завтра", "schedule_tomorrow"),
+		]).resize()
+    )
 })
 
 bot.launch()
