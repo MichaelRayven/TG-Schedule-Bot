@@ -1,29 +1,29 @@
-import { Telegraf, Markup } from 'telegraf'
+import { Telegraf, Markup, session } from 'telegraf'
 import { message } from 'telegraf/filters'
+import { SQLite } from "@telegraf/session/sqlite";
+import { welcomeMessage, helpMessage } from './config.js' 
 import 'dotenv/config'
+import { getDaySchedule, getGroup } from './requests.js';
+    
+if (process.env.BOT_TOKEN === undefined) {
+	throw new TypeError("BOT_TOKEN must be provided!");
+}
 
-import { welcomeMessage, helpMessage, scheduleMonday, 
-    scheduleTuesday, scheduleWednesday, scheduleThursday, 
-    scheduleFriday, scheduleSaturday, scheduleSunday } from './config.js' 
-
-const schedules = [scheduleSunday, scheduleMonday, scheduleTuesday, scheduleWednesday, scheduleThursday, scheduleFriday, scheduleSaturday];
-
-
+// Bot configuration
 const bot = new Telegraf(process.env.BOT_TOKEN)
+const store = SQLite({
+	filename: "./sessions.sqlite",
+});
 // bot.use(Telegraf.log()) // Debug
+bot.use(session({store}));
 
-bot.command("caption", ctx => {
-	return ctx.replyWithPhoto(
-		{ url: "https://picsum.photos/200/300/?random" },
-		{
-			caption: "Caption",
-			parse_mode: "Markdown",
-			...Markup.inlineKeyboard([
-				Markup.button.callback("Plain", "plain"),
-				Markup.button.callback("Italic", "italic"),
-			]),
-		},
-	);
+
+bot.use(async (ctx, next) => {
+	// set a default value
+	ctx.session ??= { group: "" };
+	console.log(ctx.session.group)
+
+    await next()
 });
 
 bot.command('quit', async (ctx) => {
@@ -50,30 +50,82 @@ bot.command('help', async (ctx) => {
     )
 })
 
+bot.hears(/\/set_group (.+)/, async (ctx) => {
+    const group = ctx.match[1]
+    const suggested_groups = await getGroup(group)
+
+    if (suggested_groups.length > 1) {
+        await ctx.reply(
+            `Возможно вы имели ввиду: ${suggested_groups.slice(0, 3).join(", ")}?\nПожалуйста, введите больше букв.`,
+            Markup.keyboard([
+                "Расписание на сегодня",
+                "Расписание на завтра"
+            ]).resize()
+        )
+    } else if (suggested_groups.length == 0) {
+        await ctx.reply(
+            `Групп с таким названием не существует.`,
+            Markup.keyboard([
+                "Расписание на сегодня",
+                "Расписание на завтра"
+            ]).resize()
+        )
+    } else {
+        ctx.session.group = suggested_groups[0]
+        await ctx.reply(
+            `Выбрана группа: ${suggested_groups[0]}`,
+            Markup.keyboard([
+                "Расписание на сегодня",
+                "Расписание на завтра"
+            ]).resize()
+        )
+    }
+})
+
+
+// Button
 bot.hears("Расписание на сегодня", async (ctx) => {
     const date = new Date()
-    const schedule = schedules[date.getDay()]
 
-    await ctx.reply(
-        schedule,
-        Markup.keyboard([
-			"Расписание на сегодня",
-			"Расписание на завтра"
-		]).resize()
-    )
+    if (ctx.session.group == "") {
+        return await ctx.reply(
+            "Выбирете группу!\n /set_group имя_группы",
+            Markup.keyboard([
+                "Расписание на сегодня",
+                "Расписание на завтра"
+            ]).resize()
+        )
+    } else {                
+        return await ctx.reply(
+            await getDaySchedule(date, ctx.session.group),
+            Markup.keyboard([
+                "Расписание на сегодня",
+                "Расписание на завтра"
+            ]).resize()
+        )
+    }
 })
 
 bot.hears("Расписание на завтра", async (ctx) => {
-    const date = new Date()
-    const schedule = schedules[date.getDay() + 1]
+    const date = new Date(Date.now() + (60*60*24*1000))
 
-    await ctx.reply(
-        schedule,
-        Markup.keyboard([
-			"Расписание на сегодня",
-			"Расписание на завтра"
-		]).resize()
-    )
+    if (ctx.session.group == "") {
+        return await ctx.reply(
+            "Выбирете группу!\n /set_group имя_группы",
+            Markup.keyboard([
+                "Расписание на сегодня",
+                "Расписание на завтра"
+            ]).resize()
+        )
+    } else {                
+        return await ctx.reply(
+            await getDaySchedule(date, ctx.session.group),
+            Markup.keyboard([
+                "Расписание на сегодня",
+                "Расписание на завтра"
+            ]).resize()
+        )
+    }
 })
 
 bot.launch()
