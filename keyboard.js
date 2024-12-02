@@ -3,7 +3,7 @@ import { Markup } from 'telegraf'
 export const defaultKeyboard = Markup.keyboard([
     "Расписание на сегодня",
 	"Расписание на завтра",
-    "Заметки"
+    "Посмотреть заметки"
 ])
 
 export const notesKeyboard = Markup.inlineKeyboard([
@@ -11,4 +11,3 @@ export const notesKeyboard = Markup.inlineKeyboard([
     Markup.button.callback("Добавить заметку", "add_note"),
     Markup.button.callback("Удалить заметку", "delete_note"),
 ])
-
