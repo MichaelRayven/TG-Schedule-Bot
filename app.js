@@ -161,10 +161,16 @@ bot.hears("Расписание на завтра", async (ctx) => {
 
 bot.hears("Посмотреть заметки", async (ctx) => {
     if (ctx.session.notes.length > 0) {
+        let notes = ctx.session.notes.map((entry, ind) => {
+            return `${entry[1] ? "✅" : "❎"} ${ind + 1}. ${entry[0]}`
+        }).join("\n")
+        
+        if (notes.length > 4096) {
+            notes = notes.slice(0, 4093) + "..."
+        }
+
         return await ctx.reply(
-            ctx.session.notes.map((entry, ind) => {
-                return `${entry[1] ? "✅" : "❎"} ${ind + 1}. ${entry[0]}`
-            }).join("\n"),
+            notes,
             defaultKeyboard
         )
     } else {
